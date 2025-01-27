@@ -7,18 +7,10 @@ public class Lab1 {
 
   public Lab1(int speed1, int speed2) {
 
-    // Create two instances of train controller
-    HashMap<Point,Semaphore> semaphores = new HashMap<>();
-    // Add 5 semaphores, each representing a critical section of the rail
-    Semaphore intersection1 = new Semaphore(1);
-    semaphores.put(new Point(6, 7),intersection1);
-    semaphores.put(new Point(10, 7),intersection1);
-    semaphores.put(new Point(8, 5),intersection1);
-    semaphores.put(new Point(10, 8),intersection1);
+    SensorManager manager = new SensorManager();
 
-
-    TrainBrain brain1 = new TrainBrain(1, speed1, semaphores);
-    TrainBrain brain2 = new TrainBrain(2, speed2, semaphores);
+    TrainBrain brain1 = new TrainBrain(1, 2, speed1, -1, manager);
+    TrainBrain brain2 = new TrainBrain(2, 1, speed2, 1, manager);
     
     // Create two threads which keep track of one train each
     Thread train1 = new Thread(brain1);
@@ -31,14 +23,15 @@ public class Lab1 {
 
   private class TrainBrain implements Runnable {
     
-    private int trainid, initialSpeed;
-    private Semaphore intersection1;
-    private HashMap<Point, Semaphore> shared_railway;
-
-    public TrainBrain(int trainid, int initialSpeed, HashMap<Point, Semaphore> semaphores ) {
+    private int trainid, otherTrainId, initialSpeed, direction;
+    private SensorManager manager;
+    
+    public TrainBrain(int trainid, int otherTrainId, int initialSpeed, int direction, SensorManager manager ) {
       this.trainid = trainid;
+      this.otherTrainId = otherTrainId;
       this.initialSpeed = initialSpeed;
-      this.shared_railway = semaphores;
+      this.direction = direction;
+      this.manager = manager;
     }
 
 
@@ -51,11 +44,26 @@ public class Lab1 {
           tsi.setSpeed(trainid, initialSpeed);
           tsi.setSwitch(15, 9, TSimInterface.SWITCH_RIGHT);
           while (true) { 
+            
             SensorEvent event = tsi.getSensor(trainid);
-            Semaphore semaphore = shared_railway.get(new Point(event.getXpos(), event.getYpos()));
-            if(!semaphore.tryAcquire()){
-              //Nothing
-              tsi.setSpeed(trainid, 0);
+      
+            if (event.getStatus() == SensorEvent.ACTIVE) {
+
+              ExtendedSemaphore semaphore = manager.getSemaphore(event.getXpos(), event.getYpos());
+              if(!semaphore.tryAcquire(trainid) && semaphore.getHolder() != trainid) {
+                System.out.println("Stopping train " + trainid);
+                tsi.setSpeed(trainid, 0);
+                tsi.getSensor(otherTrainId);
+                tsi.setSpeed(trainid, initialSpeed);
+              }
+                        
+            }
+
+            else if (event.getStatus() == SensorEvent.INACTIVE) {
+              ExtendedSemaphore semaphore = manager.getSemaphore(event.getXpos(), event.getYpos());
+              if (semaphore.getHolder() == trainid && trainid == 1 && direction == -1 && event.getXpos() == 10 && event.getYpos() == 7) {
+                semaphore.release();
+              }
             }
           }  
         }
@@ -66,6 +74,60 @@ public class Lab1 {
         catch (InterruptedException e) {
           e.printStackTrace();
         }
+    }
+  }
+
+  private class SensorManager {
+    
+    ExtendedSemaphore semaphore1 = new ExtendedSemaphore(1); 
+    
+    // Given a coordinate of a sensor returns a semaphore that is linked to it
+    public ExtendedSemaphore getSemaphore(int x, int y) {
+      
+      switch(x + "," + y) {
+        // The first intersection
+        case "6,7":
+          return semaphore1;
+        case "8,5":
+          return semaphore1;
+        case "10,8":
+          return semaphore1;
+        case "10,7":
+          return semaphore1; 
+        default:
+          return null; 
+      }
+    }
+  }
+  
+  private class ExtendedSemaphore extends Semaphore{
+
+    private volatile int trainHolding = 0; // The id of the train holding the permit
+
+    public ExtendedSemaphore(int permits) {
+      super(permits);
+    }
+
+    @Override
+    public boolean tryAcquire(int trainId) {
+      System.out.println("Train " + trainId + " is trying to get permit");
+      if(super.tryAcquire()) {
+        System.out.println("Train " + trainId + " acquired the permit");
+        trainHolding = trainId;
+        return true;
+      }
+      return false;
+    }
+
+    @Override
+    public void release() {
+      System.out.println("Train " + trainHolding + " releasing permit");
+      super.release();
+      trainHolding = 0;
+    }
+
+    public int getHolder() {
+      return trainHolding;
     }
   }
 }
