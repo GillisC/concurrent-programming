@@ -24,13 +24,12 @@ public class Lab1 {
   private class TrainBrain implements Runnable {
     
     // Note that direction has been choosen so that positive is a train that is moving upwards and negative that is traveling downwards
-    private int trainid, otherTrainId, initialSpeed, direction;
+    private int trainid, currentSpeed, direction;
     private SensorManager manager;
     
     public TrainBrain(int trainid, int otherTrainId, int initialSpeed, int direction, SensorManager manager ) {
       this.trainid = trainid;
-      this.otherTrainId = otherTrainId;
-      this.initialSpeed = initialSpeed;
+      this.currentSpeed = initialSpeed;
       this.direction = direction;
       this.manager = manager;
     }
@@ -42,45 +41,50 @@ public class Lab1 {
         TSimInterface tsi = TSimInterface.getInstance();
 
         try {
-          tsi.setSpeed(trainid, initialSpeed);
+          tsi.setSpeed(trainid, currentSpeed);
           tsi.setSwitch(15, 9, TSimInterface.SWITCH_RIGHT);
+          
           while (true) { 
             
             SensorEvent event = tsi.getSensor(trainid);
+            int sensorX = event.getXpos();
+            int sensorY = event.getYpos();
+            ExtendedSemaphore semaphore = manager.getSemaphore(sensorX, sensorY);
       
             if (event.getStatus() == SensorEvent.ACTIVE) {
 
-              ExtendedSemaphore semaphore = manager.getSemaphore(event.getXpos(), event.getYpos());
-              if(!semaphore.tryAcquire(trainid) && semaphore.getHolder() != trainid) {
+              if(!semaphore.tryAcquire(trainid, direction, sensorX, sensorY) && semaphore.getHolder() != trainid) {
                 System.out.println("Stopping train " + trainid);
                 tsi.setSpeed(trainid, 0);
                 // This will pause the thread until a permit can be aquired
-                semaphore.acquire(trainid);
-                tsi.setSpeed(trainid, initialSpeed);
-              } else {
-                // We have entered a critical section in which we have got the permit
-                if (trainid == 2 && event.getXpos() == 19 && event.getXpos() == 7 && direction == 1) {
-                  System.out.println("test");
-                  tsi.setSwitch(19, 7, TSimInterface.SWITCH_LEFT);
-                }
-              }
-                        
+                semaphore.acquire(trainid, direction, sensorX, sensorY);
+                tsi.setSpeed(trainid, currentSpeed);
+              }               
             }
 
             else if (event.getStatus() == SensorEvent.INACTIVE) {
-              ExtendedSemaphore semaphore = manager.getSemaphore(event.getXpos(), event.getYpos());
-              
-              // Governs intersection 1
-              if (semaphore.getHolder() == trainid && trainid == 1 && direction == -1 && event.getXpos() == 10 && event.getYpos() == 7) {
+              // Leaving intersection 1
+              if (semaphore.getHolder() == trainid && trainid == 1 && direction == -1 && sensorX == 10 && sensorY == 7) {
                 semaphore.release();
               }
-              else if (semaphore.getHolder() == trainid && trainid == 2 && direction == 1 && event.getXpos() == 8 && event.getYpos() == 5) {
+              else if (semaphore.getHolder() == trainid && trainid == 2 && direction == 1 && sensorX == 8 && sensorY == 5) {
                 semaphore.release();
                 // The train should stop here and turn around
                 tsi.setSpeed(trainid, 0);
-                wait(1000 + (20 * Math.abs(initialSpeed)));
+                Thread.sleep(1000 + (20 * Math.abs(currentSpeed)));
                 direction *= -1; // Reverse direction
-                tsi.setSpeed(trainid, initialSpeed * -1);
+                tsi.setSpeed(trainid, currentSpeed * -1);
+                currentSpeed *= -1;
+              }
+              // Leaving intersection 2
+              else if (semaphore.getHolder() == trainid && trainid == 2 && direction == 1 && sensorX == 16 && sensorY == 8) {
+                semaphore.release();
+              }
+              else if (semaphore.getHolder() == trainid && trainid == 1 && direction == 1 && sensorX == 16 && sensorY == 7) {
+                semaphore.release();
+              }
+              else if (semaphore.getHolder() == trainid && direction == -1 && sensorX == 19 && sensorY == 7) {
+                semaphore.release();
               }
             }
           }  
@@ -99,6 +103,8 @@ public class Lab1 {
     
     ExtendedSemaphore semaphore1 = new ExtendedSemaphore(1); 
     ExtendedSemaphore semaphore2 = new ExtendedSemaphore(1); 
+    ExtendedSemaphore semaphore3 = new ExtendedSemaphore(1); 
+    ExtendedSemaphore semaphore4 = new ExtendedSemaphore(1); 
     
     // Given a coordinate of a sensor returns a semaphore that is linked to it
     public ExtendedSemaphore getSemaphore(int x, int y) {
@@ -118,11 +124,29 @@ public class Lab1 {
           return semaphore2;
         case "16,8":
           return semaphore2;
-        case "19,7":
+        case "14,9":
           return semaphore2;
+        case "14,10":
+          return semaphore2;
+
+        // Omkörnings sektion
+        case "16,9":
+          return semaphore3;
+        case "2,9":
+          return semaphore3;
+        // Section 4
+        case "5,9":
+          return semaphore4;
+        case "5,10":
+          return semaphore4;
+        case "3,12":
+          return semaphore4;
+        case "4,11":
+          return semaphore4;
+
         default:
           return null; 
-      }
+        }
     }
   }
   
@@ -134,22 +158,24 @@ public class Lab1 {
       super(permits);
     }
 
-    @Override
-    public void acquire(int trainid) {
+    
+    public void acquire(int trainId, int direction, int sensorX, int sensorY) {
       try {
         super.acquire();
-        trainHolding = trainid;
+        trainHolding = trainId;
+        alterTrack(trainId, direction, sensorX, sensorY);
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
     }
 
-    @Override
-    public boolean tryAcquire(int trainId) {
+    
+    public boolean tryAcquire(int trainId, int direction, int sensorX, int sensorY) {
       System.out.println("Train " + trainId + " is trying to get permit");
       if(super.tryAcquire()) {
         System.out.println("Train " + trainId + " acquired the permit");
         trainHolding = trainId;
+        alterTrack(trainId, direction, sensorX, sensorY);
         return true;
       }
       return false;
@@ -164,6 +190,32 @@ public class Lab1 {
 
     public int getHolder() {
       return trainHolding;
+    }
+
+    private void alterTrack(int trainId, int direction, int sensorX, int sensorY) {
+      TSimInterface tsi = TSimInterface.getInstance();
+      // This method is called after a train acquires a permit to make alterations to the track
+      try {  
+        // Intersection 1 requires no alterations after acquiring a permit
+
+        // Intersection 2
+        if (trainId == 2 && sensorX == 19 && sensorY == 7 && direction == 1) {
+          tsi.setSwitch(17, 7, TSimInterface.SWITCH_LEFT);
+        }
+        else if (trainId == 2 && sensorX == 16 && sensorY == 8 && direction == -1) {
+          tsi.setSwitch(17, 7, TSimInterface.SWITCH_LEFT);
+        }
+        else if (trainId == 1 && sensorX == 19 && sensorY == 7 && direction == 1) {
+          tsi.setSwitch(17, 7, TSimInterface.SWITCH_RIGHT);
+        }
+        else if (trainId == 1 && sensorX == 16 && sensorY == 7 && direction == -1) {
+          tsi.setSwitch(17, 7, TSimInterface.SWITCH_RIGHT);
+        }
+      } 
+      catch (CommandException e) {
+        e.printStackTrace();
+      }
+       
     }
   }
 }
