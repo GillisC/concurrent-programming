@@ -34,6 +34,24 @@ public class Lab1 {
       this.manager = manager;
     }
 
+    private void turnAround(int trainId, int currentSpeed, int direction) {
+      TSimInterface tsi = TSimInterface.getInstance();
+        System.out.println("Stopping train " + trainid);
+      
+      try {
+        tsi.setSpeed(trainid, 0);
+        Thread.sleep(1000 + (20 * Math.abs(currentSpeed)));
+        direction *= -1; // Reverse direction
+        tsi.setSpeed(trainid, currentSpeed * -1);
+      } catch (CommandException e) {
+        e.printStackTrace();
+
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+      currentSpeed *= -1;
+    }
+
 
     // Shared run routine for both trains
     @Override
@@ -54,7 +72,6 @@ public class Lab1 {
             if (event.getStatus() == SensorEvent.ACTIVE) {
 
               if(!semaphore.tryAcquire(trainid, direction, sensorX, sensorY) && semaphore.getHolder() != trainid) {
-                System.out.println("Stopping train " + trainid);
                 tsi.setSpeed(trainid, 0);
                 // This will pause the thread until a permit can be aquired
                 semaphore.acquire(trainid, direction, sensorX, sensorY);
@@ -71,11 +88,21 @@ public class Lab1 {
                 semaphore.release();
                 // The train should stop here and turn around
                 tsi.setSpeed(trainid, 0);
-                Thread.sleep(1000 + (20 * Math.abs(currentSpeed)));
+                Thread.sleep(2000 + (20 * Math.abs(currentSpeed)));
                 direction *= -1; // Reverse direction
                 tsi.setSpeed(trainid, currentSpeed * -1);
                 currentSpeed *= -1;
               }
+              else if (semaphore.getHolder() == trainid && trainid == 2 && direction == -1 && sensorX == 4 && sensorY == 11) {
+                semaphore.release();
+                // The train should stop here and turn around
+                tsi.setSpeed(trainid, 0);
+                Thread.sleep(2000 + (20 * Math.abs(currentSpeed)));
+                direction *= -1; // Reverse direction
+                tsi.setSpeed(trainid, currentSpeed * -1);
+                currentSpeed *= -1;
+              }
+            
               // Leaving intersection 2
               else if (semaphore.getHolder() == trainid && trainid == 2 && direction == 1 && sensorX == 16 && sensorY == 8) {
                 semaphore.release();
@@ -83,8 +110,40 @@ public class Lab1 {
               else if (semaphore.getHolder() == trainid && trainid == 1 && direction == 1 && sensorX == 16 && sensorY == 7) {
                 semaphore.release();
               }
-              else if (semaphore.getHolder() == trainid && direction == -1 && sensorX == 19 && sensorY == 7) {
+              else if (semaphore.getHolder() == trainid && direction == -1 && sensorX == 14 && (sensorY == 9 || sensorY == 10)) {
                 semaphore.release();
+              }
+              
+              // Omkörningsväg
+              else if (semaphore.getHolder() == trainid && direction == 1 && sensorX == 16 && sensorY == 9) {
+                semaphore.release();
+              }
+              else if (semaphore.getHolder() == trainid && direction == -1 && sensorX == 2 && sensorY == 9) {
+                semaphore.release();
+              }
+              // Intersection 4
+              else if (semaphore.getHolder() == trainid && direction == 1 && sensorX == 5 && (sensorY == 9 || sensorY == 10)) {
+                semaphore.release();
+              }
+              else if (semaphore.getHolder() == trainid && direction == -1 && sensorX == 3 && sensorY == 12) {
+                semaphore.release();
+                // The train should stop here and turn around
+                Thread.sleep(2000 + (20 * Math.abs(currentSpeed)));
+                tsi.setSpeed(trainid, 0);
+                Thread.sleep(2000 + (20 * Math.abs(currentSpeed)));
+                direction *= -1; // Reverse direction
+                tsi.setSpeed(trainid, currentSpeed * -1);
+                currentSpeed *= -1;
+              }
+              else if (semaphore.getHolder() == trainid && direction == -1 && sensorX == 4 && sensorY == 11) {
+                semaphore.release();
+                // The train should stop here and turn around
+                Thread.sleep(2000 + (20 * Math.abs(currentSpeed)));
+                tsi.setSpeed(trainid, 0);
+                Thread.sleep(2000 + (20 * Math.abs(currentSpeed)));
+                direction *= -1; // Reverse direction
+                tsi.setSpeed(trainid, currentSpeed * -1);
+                currentSpeed *= -1;
               }
             }
           }  
@@ -211,6 +270,34 @@ public class Lab1 {
         else if (trainId == 1 && sensorX == 16 && sensorY == 7 && direction == -1) {
           tsi.setSwitch(17, 7, TSimInterface.SWITCH_RIGHT);
         }
+        // Omkörningsväg
+
+        // Intersection 3
+        else if (trainId == 1 && sensorX == 5 && (sensorY == 9 || sensorY == 10) && direction == -1) {
+          if (sensorY == 9) {
+            tsi.setSwitch(4, 9, TSimInterface.SWITCH_LEFT);
+          }
+          else {
+            tsi.setSwitch(4, 9, TSimInterface.SWITCH_LEFT);
+          }
+          tsi.setSwitch(3, 11, TSimInterface.SWITCH_RIGHT);
+        }
+        else if (trainId == 2 && sensorX == 5 && (sensorY == 9 || sensorY == 10) && direction == -1) {
+          if (sensorY == 9) {
+            tsi.setSwitch(4, 9, TSimInterface.SWITCH_LEFT);
+          }
+          else {
+            tsi.setSwitch(4, 9, TSimInterface.SWITCH_LEFT);
+          }
+          tsi.setSwitch(3, 11, TSimInterface.SWITCH_LEFT);
+        }
+        else if (trainId == 1 && sensorX == 3 && sensorY == 12 && direction == 1) {
+          tsi.setSwitch(3, 11, TSimInterface.SWITCH_RIGHT);
+        }
+        else if (trainId == 2 && sensorX == 4 && sensorY == 11 && direction == 1) {
+          tsi.setSwitch(3, 11, TSimInterface.SWITCH_LEFT);
+        }
+
       } 
       catch (CommandException e) {
         e.printStackTrace();
