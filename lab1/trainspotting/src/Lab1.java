@@ -35,12 +35,13 @@ public class Lab1 {
     }
 
     private void turnAround() {
+      TSimInterface tsi = TSimInterface.getInstance();
       System.out.println("Stopping train " + trainid);
       try {
         tsi.setSpeed(this.trainid, 0);
         Thread.sleep(1000 + (20 * Math.abs(this.currentSpeed)));
-        this.direction = -1; // Reverse direction
-        tsi.setSpeed(this.trainid, this.currentSpeed -1);
+        this.direction *= -1; // Reverse direction
+        tsi.setSpeed(this.trainid, this.currentSpeed * -1);
       } catch (CommandException e) {
         e.printStackTrace();
 
@@ -95,33 +96,32 @@ public class Lab1 {
               }
             
               // Leaving intersection 2
-              else if (trainid == 2 && direction == 1 && sensorX == 16 && sensorY == 8) {
+              else if (trainid == 2 && direction == 1 && sensorX == 15 && sensorY == 8) {
                 semaphore.release();
               }
-              else if (trainid == 1 && direction == 1 && sensorX == 16 && sensorY == 7) {
+              else if (trainid == 1 && direction == 1 && sensorX == 15 && sensorY == 7) {
                 semaphore.release();
               }
-              else if (direction == -1 && sensorX == 14 && (sensorY == 9 || sensorY == 10)) {
+              else if (direction == -1 && sensorX == 13 && (sensorY == 9 || sensorY == 10)) {
                 semaphore.release();
               }
               
-              // Omkörningsväg
-              else if (direction == 1 && sensorX == 16 && sensorY == 9) {
+              // Overtake lane
+              else if (direction == 1 && sensorX == 17 && sensorY == 9) {
                 semaphore.release();
               }
               else if (direction == -1 && sensorX == 2 && sensorY == 9) {
                 semaphore.release();
               }
               // Intersection 4
-              else if (direction == 1 && sensorX == 5 && (sensorY == 9 || sensorY == 10)) {
+              else if (direction == 1 && sensorX == 6 && (sensorY == 9 || sensorY == 10)) {
                 semaphore.release();
               }
-              else if (direction == -1 && sensorX == 3 && sensorY == 12) {
+              else if (direction == -1 && sensorX == 3 && sensorY == 13) {
                 semaphore.release();
                 turnAround();
               }
-              else if (trainid == 2 && direction == -1 && sensorX == 4 && sensorY == 11) {
-                System.out.println("HA " + trainid);
+              else if (trainid == 2 && direction == -1 && sensorX == 5 && sensorY == 11) {
                 semaphore.release();  
                 turnAround();
               }
@@ -159,28 +159,28 @@ public class Lab1 {
         case "10,7":
           return semaphore1; 
         // Intersection 2
-        case "16,7":
+        case "15,7":
           return semaphore2;
-        case "16,8":
+        case "15,8":
           return semaphore2;
-        case "14,9":
+        case "13,9":
           return semaphore2;
-        case "14,10":
+        case "13,10":
           return semaphore2;
 
         // Omkörnings sektion
-        case "16,9":
+        case "17,9":
           return semaphore3;
         case "2,9":
           return semaphore3;
         // Section 4
-        case "5,9":
+        case "6,9":
           return semaphore4;
-        case "5,10":
+        case "6,10":
           return semaphore4;
-        case "3,12":
+        case "3,13":
           return semaphore4;
-        case "4,11":
+        case "5,11":
           return semaphore4;
 
         default:
@@ -189,7 +189,7 @@ public class Lab1 {
     }
   }
   
-  private class ExtendedSemaphore extends Semaphore{
+  private class ExtendedSemaphore extends Semaphore {
 
     private volatile int trainHolding = 0; // The id of the train holding the permit
 
@@ -212,7 +212,7 @@ public class Lab1 {
     public boolean tryAcquire(int trainId, int direction, int sensorX, int sensorY) {
       TSimInterface tsi = TSimInterface.getInstance();
 
-      System.out.println("Train " + trainId + " is trying to get permit");
+      System.out.println("Train " + trainId + " is trying to get permit, direction: " + direction);
 
       if(super.tryAcquire()) {
         System.out.println("Train " + trainId + " acquired the permit");
@@ -220,13 +220,17 @@ public class Lab1 {
         alterTrack(trainId, direction, sensorX, sensorY);
         return true;
       } 
-      else if (sensorX == 16 && sensorY == 9 && direction == -1) { 
+      else if (sensorX == 17 && sensorY == 9 && direction == -1) { 
+        System.out.println("Train: " + trainId + " traveling: " + direction);
         try {
           tsi.setSwitch(15, 9, TSimInterface.SWITCH_LEFT);
 
         } catch (CommandException e) {
           e.printStackTrace();
         }
+        return true;
+      }
+      else if (sensorX == 17 && sensorY == 9 && direction == 1) {
         return true;
       }
       else if (sensorX == 2 && sensorY == 9 && direction == 1) { 
@@ -236,6 +240,9 @@ public class Lab1 {
         } catch (CommandException e) {
           e.printStackTrace();
         }
+        return true;
+      }
+      else if (sensorX == 2 && sensorY == 9 && direction == -1) {
         return true;
       }
       return false;
@@ -262,16 +269,16 @@ public class Lab1 {
         if (trainId == 2 && sensorX == 19 && sensorY == 7 && direction == 1) {
           tsi.setSwitch(17, 7, TSimInterface.SWITCH_LEFT);
         }
-        else if (trainId == 2 && sensorX == 16 && sensorY == 8 && direction == -1) {
+        else if (trainId == 2 && sensorX == 15 && sensorY == 8 && direction == -1) {
           tsi.setSwitch(17, 7, TSimInterface.SWITCH_LEFT);
           tsi.setSwitch(15, 9, TSimInterface.SWITCH_RIGHT);
         }
-        else if (trainId == 1 && sensorX == 16 && sensorY == 7 && direction == -1) {
+        else if (trainId == 1 && sensorX == 15 && sensorY == 7 && direction == -1) {
           tsi.setSwitch(17, 7, TSimInterface.SWITCH_RIGHT);
           tsi.setSwitch(15, 9, TSimInterface.SWITCH_RIGHT);
         }
         // Omkörningsväg
-        else if (sensorX == 14 && (sensorY == 9 || sensorY == 10) && direction == 1) {
+        else if (sensorX == 13 && (sensorY == 9 || sensorY == 10) && direction == 1) {
           if (trainId == 1) {
             if (sensorY == 9) {
               tsi.setSwitch(15, 9, TSimInterface.SWITCH_RIGHT);
@@ -290,18 +297,17 @@ public class Lab1 {
           }
         }
 
-
         // Intersection 3
-        else if (trainId == 1 && sensorX == 5 && (sensorY == 9 || sensorY == 10) && direction == -1) {
+        else if (trainId == 1 && sensorX == 6 && (sensorY == 9 || sensorY == 10) && direction == -1) {
           if (sensorY == 9) {
             tsi.setSwitch(4, 9, TSimInterface.SWITCH_LEFT);
           }
           else {
-            tsi.setSwitch(4, 9, TSimInterface.SWITCH_LEFT);
+            tsi.setSwitch(4, 9, TSimInterface.SWITCH_RIGHT);
           }
           tsi.setSwitch(3, 11, TSimInterface.SWITCH_RIGHT);
         }
-        else if (trainId == 2 && sensorX == 5 && (sensorY == 9 || sensorY == 10) && direction == -1) {
+        else if (trainId == 2 && sensorX == 6 && (sensorY == 9 || sensorY == 10) && direction == -1) {
           if (sensorY == 9) {
             tsi.setSwitch(4, 9, TSimInterface.SWITCH_LEFT);
           }
@@ -310,11 +316,11 @@ public class Lab1 {
           }
           tsi.setSwitch(3, 11, TSimInterface.SWITCH_LEFT);
         }
-        else if (trainId == 1 && sensorX == 3 && sensorY == 12 && direction == 1) {
+        else if (trainId == 1 && sensorX == 3 && sensorY == 13 && direction == 1) {
           tsi.setSwitch(3, 11, TSimInterface.SWITCH_RIGHT);
           tsi.setSwitch(4, 9, TSimInterface.SWITCH_LEFT);
         }
-        else if (trainId == 2 && sensorX == 4 && sensorY == 11 && direction == 1) {
+        else if (trainId == 2 && sensorX == 5 && sensorY == 11 && direction == 1) {
           tsi.setSwitch(3, 11, TSimInterface.SWITCH_LEFT);
           tsi.setSwitch(4, 9, TSimInterface.SWITCH_LEFT);
         }
