@@ -51,11 +51,14 @@ public class ForkJoinSolver
         this.forkAfter = forkAfter;
     }
 
+    // This is a global variable for all solvers so we can detect if the heart has been found
     static AtomicBoolean heartFound = new AtomicBoolean(false);
 
+    // This is the constructor used when creating new solvers
     public ForkJoinSolver(Maze maze, int start, Set<Integer> visited, Map<Integer, Integer> predecessor)
     {
         this(maze);
+        // We override the following attributes when creating a solver
         this.start = start;
         this.visited = visited;
         this.predecessor = predecessor;
@@ -80,8 +83,6 @@ public class ForkJoinSolver
 
     private List<Integer> parallelSearch()
     {
-        
-
         int player = maze.newPlayer(start);
         frontier.push(start);
 
@@ -92,7 +93,7 @@ public class ForkJoinSolver
             // If the heart has been found stop current worker
             if (heartFound.get()) 
             {
-                System.out.println("stopping...");
+                System.out.println("Stopping current thread...");
                 return null;
             }
             
@@ -100,10 +101,12 @@ public class ForkJoinSolver
             // If we reach the heart
             if (maze.hasGoal(current)) 
             {
+                System.out.println("Found the heart!");
                 heartFound.set(true);
-                System.out.println("found it");
+                
                 maze.move(player, current);
                 visited.add(current);
+                
                 return pathFromTo(maze.start(), current);
             }
 
@@ -115,7 +118,8 @@ public class ForkJoinSolver
                 Set<Integer> neighbors = maze.neighbors(current);
                 int unvisited = getUnvisitedNeighbors(current, visited);
                 if (unvisited >= 2) 
-                {
+                {  
+                    // Place to store solvers and their result
                     List<ForkJoinSolver> solvers = new ArrayList<>();
                     List<Integer> result = null;
 
@@ -124,15 +128,18 @@ public class ForkJoinSolver
                         if (!visited.contains(nb))
                         {
                             predecessor.put(nb, current);
+                            // Create a new solver starting on this neighbor
                             ForkJoinSolver solver = new ForkJoinSolver(this.maze, nb, this.visited, this.predecessor);
                             solvers.add(solver);
                             solver.fork();
                         }
                     }
+                    // Join all the solvers
                     for (ForkJoinSolver solver: solvers)
                     {
                         List<Integer> path = solver.join();
                         if (path != null) {
+                            // If there is a result, can also be null for all solvers.
                             result = path;
                         }
                     }
@@ -141,6 +148,8 @@ public class ForkJoinSolver
                         return result;
                     }
                 }
+                // Reaching this block means that there is only 
+                // one unvisited neighbor next to current tile
                 else
                 {
                     for (int nb: maze.neighbors(current)) 

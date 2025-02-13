@@ -130,8 +130,6 @@ public class SequentialSolver
                 // move player to goal
                 maze.move(player, current);
                 // search finished: reconstruct and return path
-                System.out.println(pathFromTo(start, current));
-                System.out.println(predecessor);
                 return pathFromTo(start, current);
             }
             // if current node has not been visited yet
