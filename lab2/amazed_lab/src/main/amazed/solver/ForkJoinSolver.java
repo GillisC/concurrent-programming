@@ -2,11 +2,7 @@ package amazed.solver;
 
 import amazed.maze.Maze;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -23,6 +19,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ForkJoinSolver
     extends SequentialSolver
 {
+    // This is a global variable for all solvers so we can detect if the heart has been found
+    static AtomicBoolean heartFound = new AtomicBoolean(false);
+    protected static ConcurrentSkipListSet<Integer> visited;
+    protected Map<Integer, Integer> predecessor;
+    protected Stack<Integer> frontier;
+
     /**
      * Creates a solver that searches in <code>maze</code> from the
      * start node to a goal.
@@ -51,11 +53,8 @@ public class ForkJoinSolver
         this.forkAfter = forkAfter;
     }
 
-    // This is a global variable for all solvers so we can detect if the heart has been found
-    static AtomicBoolean heartFound = new AtomicBoolean(false);
-
     // This is the constructor used when creating new solvers
-    public ForkJoinSolver(Maze maze, int start, Set<Integer> visited, Map<Integer, Integer> predecessor)
+    public ForkJoinSolver(Maze maze, int start, ConcurrentSkipListSet<Integer> visited, Map<Integer, Integer> predecessor)
     {
         this(maze);
         // We override the following attributes when creating a solver
@@ -179,4 +178,20 @@ public class ForkJoinSolver
         }
         return unvisited;
     }
+
+    @Override
+    protected List<Integer> pathFromTo(int from, int to) {
+        List<Integer> path = new LinkedList<>();
+        Integer current = to;
+        while (current != from) {
+            path.add(current);
+            current = predecessor.get(current);
+            if (current == null)
+                return null;
+        }
+        path.add(from);
+        Collections.reverse(path);
+        return path;
+    }
+
 }
