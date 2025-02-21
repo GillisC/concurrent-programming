@@ -1,8 +1,8 @@
 package amazed.solver;
 
 import amazed.maze.Maze;
-
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -21,10 +21,8 @@ public class ForkJoinSolver
 {
     // This is a global variable for all solvers so we can detect if the heart has been found
     static AtomicBoolean heartFound = new AtomicBoolean(false);
-    protected static ConcurrentSkipListSet<Integer> visited;
-    protected Map<Integer, Integer> predecessor;
-    protected Stack<Integer> frontier;
-
+    protected static ConcurrentSkipListSet<Integer> visited = new ConcurrentSkipListSet<>();
+    protected ConcurrentHashMap<Integer,Integer> predecessor;
     /**
      * Creates a solver that searches in <code>maze</code> from the
      * start node to a goal.
@@ -51,15 +49,15 @@ public class ForkJoinSolver
     {
         this(maze);
         this.forkAfter = forkAfter;
+        this.predecessor = new ConcurrentHashMap<>();
     }
 
     // This is the constructor used when creating new solvers
-    public ForkJoinSolver(Maze maze, int start, ConcurrentSkipListSet<Integer> visited, Map<Integer, Integer> predecessor)
+    public ForkJoinSolver(Maze maze, int start, ConcurrentHashMap<Integer, Integer> predecessor)
     {
         this(maze);
         // We override the following attributes when creating a solver
         this.start = start;
-        this.visited = visited;
         this.predecessor = predecessor;
     }
 
@@ -110,9 +108,8 @@ public class ForkJoinSolver
             }
 
             // If we reach an unvisited tile
-            if (!visited.contains(current)) {
+            if (visited.add(current)) {
                 maze.move(player, current);
-                visited.add(current);
 
                 Set<Integer> neighbors = maze.neighbors(current);
                 int unvisited = getUnvisitedNeighbors(current, visited);
@@ -121,14 +118,14 @@ public class ForkJoinSolver
                     // Place to store solvers and their result
                     List<ForkJoinSolver> solvers = new ArrayList<>();
                     List<Integer> result = null;
-
                     for (int nb: neighbors) 
                     {   
                         if (!visited.contains(nb))
                         {
                             predecessor.put(nb, current);
                             // Create a new solver starting on this neighbor
-                            ForkJoinSolver solver = new ForkJoinSolver(this.maze, nb, this.visited, this.predecessor);
+                            
+                            ForkJoinSolver solver = new ForkJoinSolver(this.maze, nb, this.predecessor);
                             solvers.add(solver);
                             solver.fork();
                         }
@@ -160,7 +157,6 @@ public class ForkJoinSolver
                 }
             }
         }
-        
         return null;
     }
 
@@ -186,12 +182,12 @@ public class ForkJoinSolver
         while (current != from) {
             path.add(current);
             current = predecessor.get(current);
-            if (current == null)
+            if (current == null){
                 return null;
+            }
         }
         path.add(from);
         Collections.reverse(path);
         return path;
     }
-
 }
