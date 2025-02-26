@@ -1,27 +1,25 @@
 -module(server).
--export([start/1, messageLoop/0]).%,stop/1]).
+-export([start/1, stop/1]).
 
+%STATE is the list of channel Atoms 
 
 % Start a new server process with the given name
 % Do not change the signature of this function.
 start(ServerAtom) ->
-    Pid = spawn(?MODULE, messageLoop, []),
-    Pid ! ServerAtom.
-    % TODO Implement function
-    % - Spawn a new process which waits for a message, handles it, then loops infinitely
-    % - Register this process to ServerAtom
-    % - Return the process ID
-    % not_implemented.
+    Pid = genserver:start(ServerAtom, [], handle),
+    Pid. 
  
 % Stop the server process registered to the given name,
 % together with any other associated processes
-% stop(ServerAtom) ->
-%     % TODO Implement function
-%     % Return ok
-%     not_implemented.
+stop(ServerAtom) ->
+    genserver:stop(ServerAtom).
 
-messageLoop() ->
-    receive 
-        started -> io:format("Server started!");
-        _ -> io:format("HI")
-    end.
+% This is F we send into genserver
+handle(State, {join, ChannelAtom, From}) ->
+    case lists:member(ChannelAtom, State) of 
+        true -> NewState = lists:append(State, [ChannelAtom])
+    NewState = lists:append(State, [ChannelAtom]),
+    {reply, ok, NewState}.
+    
+    
+    
