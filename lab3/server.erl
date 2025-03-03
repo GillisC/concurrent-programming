@@ -1,5 +1,5 @@
 -module(server).
--export([start/1, stop/1]).
+-export([start/1, stop/1, handle/2]).
 
 %STATE is the list of channel Atoms 
 
@@ -15,11 +15,17 @@ stop(ServerAtom) ->
     genserver:stop(ServerAtom).
 
 % This is F we send into genserver
-handle(State, {join, ChannelAtom, From}) ->
-    case lists:member(ChannelAtom, State) of 
-        true -> NewState = lists:append(State, [ChannelAtom])
-    NewState = lists:append(State, [ChannelAtom]),
-    {reply, ok, NewState}.
-    
+handle(Channels, {join, ChannelAtom, Client}) ->
+    NewState = case lists:member(ChannelAtom, Channels) of 
+        false -> 
+            channel:start(ChannelAtom),     
+            [ChannelAtom | Channels];
+        true -> 
+            Channels
+    end,
+    Result = genserver:request(ChannelAtom, {join, Client}),
+    {reply, Result, NewState}.
+
+                 
     
     
