@@ -25,8 +25,16 @@ handle(Channels, {join, ChannelAtom, Client}) ->
             Channels
     end,
     Result = genserver:request(list_to_atom(ChannelAtom), {join, Client}),
-    {reply, Result, NewState}.
+    {reply, Result, NewState};
 
-                 
+handle(Channels, {leave, ChannelAtom, Client}) ->
+    case lists:member(ChannelAtom, Channels) of 
+        false -> 
+            {reply, {error, channel_does_not_exits, "Client tried to leave channel that is not real!"}, Channels};
+        true -> 
+            NewState = lists:filter(fun(X) -> X =/= ChannelAtom end, Channels),
+            Result = genserver:request(list_to_atom(ChannelAtom), {leave, Client}),
+            {reply, Result, NewState}
+    end.
     
     
