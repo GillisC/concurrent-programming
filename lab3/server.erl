@@ -16,7 +16,6 @@ stop(ServerAtom) ->
 
 % This is F we send into genserver
 handle(Channels, {join, ChannelAtom, Client}) ->
-    io:format("~p~n", [Channels]),
     NewState = case lists:member(ChannelAtom, Channels) of 
         false -> 
             channel:start(list_to_atom(ChannelAtom)),     
@@ -35,6 +34,13 @@ handle(Channels, {leave, ChannelAtom, Client}) ->
             NewState = lists:filter(fun(X) -> X =/= ChannelAtom end, Channels),
             Result = genserver:request(list_to_atom(ChannelAtom), {leave, Client}),
             {reply, Result, NewState}
+    end;
+
+handle(Channels, {message_send, Channel, Msg, Client, Nick}) ->
+    case lists:member(Channel, Channels) of
+        false ->
+            {reply, {error, channel_does_not_exist, "Message to channel that does not exist!"}, Channels};
+        true ->
+            Result = genserver:request(list_to_atom(Channel), {message_send, Client, Msg, Nick}),
+            {reply, Result, Channels}
     end.
-    
-    
