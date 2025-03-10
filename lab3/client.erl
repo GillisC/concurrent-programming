@@ -29,15 +29,17 @@ initial_state(Nick, GUIAtom, ServerAtom) ->
 % Join channel
 handle(St, {join, Channel}) ->
     case catch genserver:request(St#client_st.server,  {join, Channel, self()}) of 
+        {'EXIT', _} ->
+            {reply, {error, server_not_reached, "Server failed!"}, St};
         timeout_error -> 
-            {reply, {error, server_not_reached, "not reached!"}, St};
+            {reply, {error, server_not_reached, "Server not reached!"}, St};
         Result -> 
             {reply, Result, St}
     end; 
 
 % Leave channel
 handle(St, {leave, Channel}) ->
-    Result = genserver:request(St#client_st.server,  {leave, Channel, self()}),
+    Result = genserver:request(list_to_atom(Channel),  {leave, self()}),
     {reply, Result, St};
 
 % Sending message (from GUI, to channel)
@@ -60,9 +62,12 @@ handle(St, whoami) ->
 
 % Incoming message (from channel, to GUI)
 handle(St = #client_st{gui = GUI}, {message_receive, Channel, Nick, Msg}) ->
-    io:format("Client: ~p~n", [{Channel, Nick, Msg}]),
-    gen_server:call(GUI, {message_receive, Channel, Nick++"> "++Msg}),
-    {reply, ok, St} ;
+    case catch gen_server:call(GUI, {message_receive, Channel, Nick++"> "++Msg}) of
+        {'EXIT', _} ->
+            {reply, {error, server_not_reached}, St};
+        Result -> 
+            {reply, Result, St}
+    end;
 
 % Quit client via GUI
 handle(St, quit) ->
