@@ -1,13 +1,10 @@
 package amazed.solver;
 
 import amazed.maze.Maze;
-
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.Set;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -111,9 +108,8 @@ public class ForkJoinSolver
             }
 
             // If we reach an unvisited tile
-            if (!visited.contains(current)) {
+            if (visited.add(current)) {
                 maze.move(player, current);
-                visited.add(current);
 
                 Set<Integer> neighbors = maze.neighbors(current);
                 int unvisited = getUnvisitedNeighbors(current, visited);
