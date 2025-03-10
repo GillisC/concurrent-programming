@@ -28,8 +28,12 @@ initial_state(Nick, GUIAtom, ServerAtom) ->
 
 % Join channel
 handle(St, {join, Channel}) ->
-    Result = genserver:request(St#client_st.server,  {join, Channel, self()}),
-    {reply, Result, St};
+    case catch genserver:request(St#client_st.server,  {join, Channel, self()}) of 
+        timeout_error -> 
+            {reply, {error, server_not_reached, "not reached!"}, St};
+        Result -> 
+            {reply, Result, St}
+    end; 
 
 % Leave channel
 handle(St, {leave, Channel}) ->
@@ -38,7 +42,7 @@ handle(St, {leave, Channel}) ->
 
 % Sending message (from GUI, to channel)
 handle(St, {message_send, Channel, Msg}) ->
-    Result = genserver:request(St#client_st.server, {message_send, Channel, Msg, self(), St#client_st.nick}),
+    Result = genserver:request(list_to_atom(Channel), {message_send, Msg, self(), St#client_st.nick}),
     {reply, Result, St};
 
 % This case is only relevant for the distinction assignment!
@@ -56,7 +60,7 @@ handle(St, whoami) ->
 
 % Incoming message (from channel, to GUI)
 handle(St = #client_st{gui = GUI}, {message_receive, Channel, Nick, Msg}) ->
-    io:format("Client: ~p~n", [self()]),
+    io:format("Client: ~p~n", [{Channel, Nick, Msg}]),
     gen_server:call(GUI, {message_receive, Channel, Nick++"> "++Msg}),
     {reply, ok, St} ;
 
