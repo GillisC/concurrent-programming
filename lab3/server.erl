@@ -12,16 +12,28 @@ start(ServerAtom) ->
 % Stop the server process registered to the given name,
 % together with any other associated processes
 stop(ServerAtom) ->
+    genserver:request(ServerAtom, stop),
     genserver:stop(ServerAtom).
 
+handle(Channels, stop) ->
+    lists:foreach(
+      fun(X) ->
+          io:format("Stopping channel: ~p~n", [X]),
+          channel:stop(X)
+      end,
+      Channels
+    ),
+    {reply, ok, []};
+
 % This is F we send into genserver
-handle(Channels, {join, ChannelAtom, Client}) ->
+handle(Channels, {join, Channel, Client}) ->
+    ChannelAtom = list_to_atom(Channel),
     NewState = case lists:member(ChannelAtom, Channels) of 
         false -> 
-            channel:start(list_to_atom(ChannelAtom)),     
+            channel:start(ChannelAtom),     
             [ChannelAtom | Channels];
         true -> 
             Channels
     end,
-    Result = genserver:request(list_to_atom(ChannelAtom), {join, Client}),
+    Result = genserver:request(ChannelAtom, {join, Client}),
     {reply, Result, NewState}.
