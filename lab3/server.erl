@@ -16,13 +16,8 @@ stop(ServerAtom) ->
     genserver:stop(ServerAtom).
 
 handle(Channels, stop) ->
-    lists:foreach(
-      fun(X) ->
-          io:format("Stopping channel: ~p~n", [X]),
-          channel:stop(X)
-      end,
-      Channels
-    ),
+    lists:foreach(fun(X) ->
+          channel:stop(X) end, Channels),
     {reply, ok, []};
 
 % This is F we send into genserver

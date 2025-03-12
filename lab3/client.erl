@@ -47,8 +47,6 @@ handle(St, {message_send, Channel, Msg}) ->
     case catch genserver:request(list_to_atom(Channel), {message_send, Channel, Msg, self(), St#client_st.nick}) of
         {'EXIT', _} ->
             {reply, {error, server_not_reached, "Channel failed!"}, St};
-        timeout_error -> 
-            {reply, {error, server_not_reached, "Channel not reached!"}, St};
         Result ->
             {reply, Result, St}
     end;
@@ -56,7 +54,7 @@ handle(St, {message_send, Channel, Msg}) ->
 % This case is only relevant for the distinction assignment!
 % Change nick (no check, local only)
 handle(St, {nick, NewNick}) ->
-    {reply, ok, St#client_st{nick = NewNick}} ;
+    {reply, ok, St#client_st{nick = NewNick}};
 
 % ---------------------------------------------------------------------------
 % The cases below do not need to be changed...
@@ -64,7 +62,7 @@ handle(St, {nick, NewNick}) ->
 
 % Get current nick
 handle(St, whoami) ->
-    {reply, St#client_st.nick, St} ;
+    {reply, St#client_st.nick, St};
 
 % Incoming message (from channel, to GUI)
 handle(St = #client_st{gui = GUI}, {message_receive, Channel, Nick, Msg}) ->
