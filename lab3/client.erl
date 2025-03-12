@@ -28,27 +28,32 @@ initial_state(Nick, GUIAtom, ServerAtom) ->
 
 % Join channel
 handle(St, {join, Channel}) ->
-    io:format("Client sending join request: Server=~p, Channel=~p, Nick=~p~n", 
-              [St#client_st.server, Channel, St#client_st.nick]),
-
-    Result = genserver:request(St#client_st.server, {join, Channel, self()}),
-    {reply, Result, St};
+    case catch genserver:request(St#client_st.server,  {join, Channel, self()}) of 
+        {'EXIT', _} ->
+            {reply, {error, server_not_reached, "Server failed!"}, St};
+        timeout_error -> 
+            {reply, {error, server_not_reached, "Server not reached!"}, St};
+        Result -> 
+            {reply, Result, St}
+    end; 
 
 % Leave channel
 handle(St, {leave, Channel}) ->
-    io:format("Client sending leave request: Server=~p, Channel=~p, Nick=~p~n", 
-              [St#client_st.server, Channel, St#client_st.nick]),
-    
-    Result = genserver:request(St#client_st.server, {leave, Channel, self()}),
+    Result = genserver:request(list_to_atom(Channel),  {leave, self()}),
     {reply, Result, St};
 
 % Sending message (from GUI, to channel)
 handle(St, {message_send, Channel, Msg}) ->
-   io:format("Client sending message request: Server=~p, Channel=~p, Nick=~p~n", 
-              [St#client_st.server, Channel, St#client_st.nick]),
+    case catch genserver:request(list_to_atom(Channel), {message_send, Channel, Msg, self(), St#client_st.nick}) of
+        {'EXIT', _} ->
+            {reply, {error, server_not_reached, "Channel failed!"}, St};
+        timeout_error -> 
+            {reply, {error, server_not_reached, "Channel not reached!"}, St};
+        Result ->
+            {reply, Result, St}
+    end;
 
-    Result = genserver:request(St#client_st.server, {message_send, Channel, Msg, St#client_st.nick, self()}),
-    {reply, Result, St};
+
 
 % This case is only relevant for the distinction assignment!
 % Change nick (no check, local only)

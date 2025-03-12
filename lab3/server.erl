@@ -12,8 +12,23 @@ start(ServerAtom) ->
 % Stop the server process registered to the given name,
 % together with any other associated processes
 stop(ServerAtom) ->
-    genserver:request(ServerAtom, stop),
-    genserver:stop(ServerAtom).
+    case whereis(ServerAtom) of
+        undefined -> 
+            io:format("Server already stopped.~n"),
+            {error, server_not_running};
+        Pid when is_pid(Pid) ->
+            io:format("Stopping server: ~p~n", [Pid]),
+            
+            % Send an async stop request
+            genserver:stop(ServerAtom),
+
+            % Wait for the server to actually stop
+            timer:sleep(100),
+            ok
+    end.
+
+handle(Channels, stop) ->
+    lists:foreach(fun(X) -> channel:stop(X) end, Channels);
 
 handle(Channels, stop) ->
     lists:foreach(
@@ -27,7 +42,6 @@ handle(Channels, stop) ->
 
 % This is F we send into genserver
 handle(Channels, {join, ChannelAtom, Client}) ->
-    io:format("hello, ~p~n", [Channels]),
     NewState = case lists:member(ChannelAtom, Channels) of 
         false -> 
             channel:start(ChannelAtom),     
@@ -36,28 +50,4 @@ handle(Channels, {join, ChannelAtom, Client}) ->
             Channels
     end,
     Result = genserver:request(list_to_atom(ChannelAtom), {join, Client}),
-    {reply, Result, NewState};
-
-handle(Channels, {leave, ChannelAtom, Client}) ->
-    io:format("~p~n", [Channels]),
-    NewState = case lists:member(ChannelAtom, Channels) of 
-        true -> 
-            lists:delete(ChannelAtom, Channels);
-        false -> 
-            Channels
-    end,
-    Result = genserver:request(list_to_atom(ChannelAtom), {leave, Client}),
-    {reply, Result, NewState};
-
-
-handle(Channels, {message_send, ChannelAtom, Msg, Nick, Client}) ->
-    
-    % Check if the client is part of the channel
-    case lists:member(ChannelAtom, Channels) of
-        false ->
-            {reply, {error, user_not_joined, "User not a member!"}, Channels};
-        true ->
-            % Send the message to the channel for broadcasting
-            Result = genserver:request(list_to_atom(ChannelAtom), {broadcast_message, list_to_atom(ChannelAtom), Msg, Nick, Client}),
-            {reply, Result, Channels}
-    end.
+    {reply, Result, NewState}.

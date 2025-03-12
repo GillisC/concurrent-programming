@@ -10,40 +10,34 @@ stop(ChannelAtom) ->
     genserver:stop(ChannelAtom).
 
 handle(Users, {join, Client}) ->
-    io:format("Channel handling join request: Users=~p, Client=~p~n", [Users, Client]),
     case lists:member(Client, Users) of 
         true  -> 
-            {reply, {error, client_already_joined, "Client already joined" }, Users};
+            {reply, {error, user_already_joined, "user already joined" }, Users};
         false -> 
             {reply, ok, [Client | Users]}
     end;
 
 handle(Users, {leave, Client}) ->
-    io:format("Channel handling leave request: Users=~p, Client=~p~n", [Users, Client]),
     case lists:member(Client, Users) of 
-        true  -> 
-            {reply, ok, lists:delete(Client, Users)};
         false -> 
-            {reply, {error, client_not_a_member, "Client is not a member" }, Users}
+            {reply, {error, user_not_joined, "Client not member!"}, Users};
+        true -> 
+            {reply, ok, lists:delete(Client, Users)} %Make this quit 
     end;
 
-handle(Users, {broadcast_message, ChannelAtom, Msg, Nick, Client}) ->
-    io:format("Channel broadcasting message: Msg=~p, Nick=~p~n", [Msg, Nick]),
-    
-    % Send the message to all clients in the channel (except the sender)
-    lists:foreach(fun(ClientInChannel) ->
-                        % Skip the sender (the client who sent the message)
-                        case ClientInChannel =/= Client of
-                            true -> 
-                                % Send message to all other clients
-                                genserver:request(Client, {message_receive, ChannelAtom, Nick, Msg}),
-                                io:format("Sending message to ~p: ~p~n", [ClientInChannel, Msg]);
-                            false -> 
-                                io:format("Skipping message to sender: ~p~n", [ClientInChannel])
-                        end
-                    end, Users),
-    
-    {reply, ok, Users}.
+handle(Users, {message_send, Channel, Msg, Client, Nick}) ->
+    case lists:member(Client, Users) of
+        false ->
+            {reply, {error, user_not_joined, "User not a member!"}, Users};
+        true ->
+        lists:foreach(fun(X) -> 
+            spawn(fun() ->
+                genserver:request(X, {message_receive, Channel, Nick, Msg}) 
+            end)
+        end, 
+        lists:delete(Client, Users)),
+        {reply, ok, Users}    
+    end.
 
 % get_string_from_pid() -> This was pro coding but took to long for 500ms
 %     atom_to_list(element(2,process_info(self(), registered_name))).
