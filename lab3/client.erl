@@ -53,8 +53,6 @@ handle(St, {message_send, Channel, Msg}) ->
             {reply, Result, St}
     end;
 
-
-
 % This case is only relevant for the distinction assignment!
 % Change nick (no check, local only)
 handle(St, {nick, NewNick}) ->

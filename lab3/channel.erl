@@ -31,11 +31,8 @@ handle(Users, {message_send, Channel, Msg, Client, Nick}) ->
             {reply, {error, user_not_joined, "User not a member!"}, Users};
         true ->
         lists:foreach(fun(X) -> 
-            spawn(fun() ->
-                genserver:request(X, {message_receive, Channel, Nick, Msg}) 
-            end)
-        end, 
-        lists:delete(Client, Users)),
+            spawn(fun() -> genserver:request(X, {message_receive, Channel, Nick, Msg}) end) end, 
+                        lists:delete(Client, Users)),
         {reply, ok, Users}    
     end.
 

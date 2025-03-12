@@ -12,23 +12,8 @@ start(ServerAtom) ->
 % Stop the server process registered to the given name,
 % together with any other associated processes
 stop(ServerAtom) ->
-    case whereis(ServerAtom) of
-        undefined -> 
-            io:format("Server already stopped.~n"),
-            {error, server_not_running};
-        Pid when is_pid(Pid) ->
-            io:format("Stopping server: ~p~n", [Pid]),
-            
-            % Send an async stop request
-            genserver:stop(ServerAtom),
-
-            % Wait for the server to actually stop
-            timer:sleep(100),
-            ok
-    end.
-
-handle(Channels, stop) ->
-    lists:foreach(fun(X) -> channel:stop(X) end, Channels);
+    genserver:request(ServerAtom, stop),
+    genserver:stop(ServerAtom).
 
 handle(Channels, stop) ->
     lists:foreach(
@@ -41,7 +26,8 @@ handle(Channels, stop) ->
     {reply, ok, []};
 
 % This is F we send into genserver
-handle(Channels, {join, ChannelAtom, Client}) ->
+handle(Channels, {join, Channel, Client}) ->
+    ChannelAtom = list_to_atom(Channel),
     NewState = case lists:member(ChannelAtom, Channels) of 
         false -> 
             channel:start(ChannelAtom),     
@@ -49,5 +35,5 @@ handle(Channels, {join, ChannelAtom, Client}) ->
         true -> 
             Channels
     end,
-    Result = genserver:request(list_to_atom(ChannelAtom), {join, Client}),
+    Result = genserver:request(ChannelAtom, {join, Client}),
     {reply, Result, NewState}.
