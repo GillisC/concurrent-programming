@@ -14,7 +14,7 @@ handle(Users, {join, Client}) ->
         true  -> 
             {reply, {error, user_already_joined, "user already joined" }, Users};
         false -> 
-            {reply, ok, [Client | Users]}
+            {reply, ok, [Client | Users]} %Adds client to users
     end;
 
 handle(Users, {leave, Client}) ->
@@ -24,7 +24,8 @@ handle(Users, {leave, Client}) ->
         true -> 
             {reply, ok, lists:delete(Client, Users)} %Make this quit 
     end;
-
+%Spawns new a process that sends requests to genserver 
+%Instead of having the foreach process having to do it and waiting for reply(faster)
 handle(Users, {message_send, Channel, Msg, Client, Nick}) ->
     case lists:member(Client, Users) of
         false ->
@@ -33,7 +34,7 @@ handle(Users, {message_send, Channel, Msg, Client, Nick}) ->
         lists:foreach(fun(X) -> 
             spawn(fun() -> genserver:request(X, {message_receive, Channel, Nick, Msg}) end) end, 
                         lists:delete(Client, Users)),
-        {reply, ok, Users}    
+        {reply, ok, Users}
     end.
 
 % get_string_from_pid() -> This was pro coding but took to long for 500ms
