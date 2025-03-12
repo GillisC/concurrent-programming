@@ -2,9 +2,22 @@ package amazed.solver;
 
 import amazed.maze.Maze;
 import java.util.ArrayList;
+<<<<<<< HEAD
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+=======
+import java.util.Collections;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Set;
+import java.util.Stack;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentSkipListSet;
+>>>>>>> b1c8b1c (yo)
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -20,6 +33,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ForkJoinSolver
     extends SequentialSolver
 {
+    protected ConcurrentSkipListSet<Integer> visited;
+    protected ConcurrentHashMap<Integer, Integer> predecessor;
+ 
     /**
      * Creates a solver that searches in <code>maze</code> from the
      * start node to a goal.
@@ -46,19 +62,28 @@ public class ForkJoinSolver
     {
         this(maze);
         this.forkAfter = forkAfter;
+        initStructures();
     }
 
     // This is a global variable for all solvers so we can detect if the heart has been found
     static AtomicBoolean heartFound = new AtomicBoolean(false);
-
+    
     // This is the constructor used when creating new solvers
-    public ForkJoinSolver(Maze maze, int start, Set<Integer> visited, Map<Integer, Integer> predecessor)
+    public ForkJoinSolver(Maze maze, int start, ConcurrentSkipListSet<Integer> visited, ConcurrentHashMap<Integer, Integer> predecessor)
     {
         this(maze);
         // We override the following attributes when creating a solver
         this.start = start;
         this.visited = visited;
-        this.predecessor = predecessor;
+        this.predecessor = predecessor; 
+    }
+
+    @Override
+    protected void initStructures() 
+    {
+        visited = new ConcurrentSkipListSet<>();
+        predecessor = new ConcurrentHashMap<>();
+        frontier = new Stack<>();
     }
 
     /**
@@ -93,7 +118,6 @@ public class ForkJoinSolver
                 System.out.println("Stopping current thread...");
                 return null;
             }
-            
 
             // If we reach the heart
             if (maze.hasGoal(current)) 
@@ -103,7 +127,8 @@ public class ForkJoinSolver
                 
                 maze.move(player, current);
                 visited.add(current);
-                
+                System.out.println("path: " + pathFromTo(maze.start(), current) == null);
+                System.out.println(pathFromTo(maze.start(), current));
                 return pathFromTo(maze.start(), current);
             }
 
@@ -124,6 +149,7 @@ public class ForkJoinSolver
                         if (!visited.contains(nb))
                         {
                             predecessor.put(nb, current);
+                            
                             // Create a new solver starting on this neighbor
                             ForkJoinSolver solver = new ForkJoinSolver(this.maze, nb, this.visited, this.predecessor);
                             solvers.add(solver);
@@ -157,7 +183,6 @@ public class ForkJoinSolver
                 }
             }
         }
-        
         return null;
     }
 
@@ -174,5 +199,20 @@ public class ForkJoinSolver
             }
         }
         return unvisited;
+    }
+
+    @Override
+    protected List<Integer> pathFromTo(int from, int to) {
+        List<Integer> path = new LinkedList<>();
+        Integer current = to;
+        while (current != from) {
+            path.add(current);
+            current = predecessor.get(current);
+            if (current == null)
+                return null;
+        }
+        path.add(from);
+        Collections.reverse(path);
+        return path;
     }
 }

@@ -26,8 +26,8 @@ handle(Channels, stop) ->
     {reply, ok, []};
 
 % This is F we send into genserver
-handle(Channels, {join, Channel, Client}) ->
-    ChannelAtom = list_to_atom(Channel),
+handle(Channels, {join, ChannelAtom, Client}) ->
+    io:format("hello, ~p~n", [Channels]),
     NewState = case lists:member(ChannelAtom, Channels) of 
         false -> 
             channel:start(ChannelAtom),     
@@ -35,5 +35,29 @@ handle(Channels, {join, Channel, Client}) ->
         true -> 
             Channels
     end,
-    Result = genserver:request(ChannelAtom, {join, Client}),
-    {reply, Result, NewState}.
+    Result = genserver:request(list_to_atom(ChannelAtom), {join, Client}),
+    {reply, Result, NewState};
+
+handle(Channels, {leave, ChannelAtom, Client}) ->
+    io:format("~p~n", [Channels]),
+    NewState = case lists:member(ChannelAtom, Channels) of 
+        true -> 
+            lists:delete(ChannelAtom, Channels);
+        false -> 
+            Channels
+    end,
+    Result = genserver:request(list_to_atom(ChannelAtom), {leave, Client}),
+    {reply, Result, NewState};
+
+
+handle(Channels, {message_send, ChannelAtom, Msg, Nick, Client}) ->
+    
+    % Check if the client is part of the channel
+    case lists:member(ChannelAtom, Channels) of
+        false ->
+            {reply, {error, user_not_joined, "User not a member!"}, Channels};
+        true ->
+            % Send the message to the channel for broadcasting
+            Result = genserver:request(list_to_atom(ChannelAtom), {broadcast_message, list_to_atom(ChannelAtom), Msg, Nick, Client}),
+            {reply, Result, Channels}
+    end.
